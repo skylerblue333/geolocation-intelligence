@@ -1,0 +1,11 @@
+{
+  "name": "@skycoin4444/geolocation-intelligence",
+  "version": "1.0.0",
+  "description": "Advanced geolocation and location intelligence platform",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo 'tests'",
+    "start": "node dist/index.js"
+  }
+}
