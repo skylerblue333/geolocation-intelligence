@@ -1,126 +1,124 @@
-/**
- * Advanced Geolocation Intelligence System
- * Real-time location tracking, geofencing, route optimization
- */
-
 export interface Location {
   latitude: number;
   longitude: number;
-  altitude?: number;
-  accuracy?: number;
   timestamp: number;
+  accuracy?: number;
 }
 
 export interface GeofenceZone {
   id: string;
   name: string;
   center: Location;
-  radius: number; // meters
-  type: 'inclusion' | 'exclusion';
+  radiusMeters: number;
+  type: "inclusion" | "exclusion";
 }
 
-export interface Route {
-  id: string;
+export interface GeofenceEvaluation {
+  zoneId: string;
+  inside: boolean;
+  violation: boolean;
+  distanceMeters: number;
+}
+
+export interface RouteEstimate {
   waypoints: Location[];
-  distance: number;
-  estimatedTime: number;
-  optimized: boolean;
+  distanceMeters: number;
+  heuristic: "nearest-neighbor";
+}
+
+const MAX_ZONES = 1000;
+const MAX_HISTORY_PER_ENTITY = 1000;
+const MAX_WAYPOINTS = 100;
+
+function validateLocation(location: Location): void {
+  if (!Number.isFinite(location.latitude) || location.latitude < -90 || location.latitude > 90) {
+    throw new Error("latitude must be between -90 and 90");
+  }
+  if (!Number.isFinite(location.longitude) || location.longitude < -180 || location.longitude > 180) {
+    throw new Error("longitude must be between -180 and 180");
+  }
+  if (!Number.isFinite(location.timestamp) || location.timestamp < 0) {
+    throw new Error("timestamp must be a non-negative finite number");
+  }
+  if (location.accuracy !== undefined && (!Number.isFinite(location.accuracy) || location.accuracy < 0)) {
+    throw new Error("accuracy must be non-negative when supplied");
+  }
+}
+
+export function distanceMeters(left: Location, right: Location): number {
+  validateLocation(left);
+  validateLocation(right);
+  const radius = 6_371_000;
+  const lat1 = (left.latitude * Math.PI) / 180;
+  const lat2 = (right.latitude * Math.PI) / 180;
+  const deltaLat = ((right.latitude - left.latitude) * Math.PI) / 180;
+  const deltaLon = ((right.longitude - left.longitude) * Math.PI) / 180;
+  const a =
+    Math.sin(deltaLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) ** 2;
+  return radius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 export class GeolocationIntelligence {
-  private zones: Map<string, GeofenceZone> = new Map();
-  private locations: Map<string, Location[]> = new Map();
+  private readonly zones = new Map<string, GeofenceZone>();
+  private readonly histories = new Map<string, Location[]>();
 
   addGeofence(zone: GeofenceZone): void {
-    this.zones.set(zone.id, zone);
+    if (!zone.id.trim() || zone.id.length > 128) throw new Error("zone id must contain 1-128 characters");
+    if (!zone.name.trim() || zone.name.length > 200) throw new Error("zone name must contain 1-200 characters");
+    validateLocation(zone.center);
+    if (!Number.isFinite(zone.radiusMeters) || zone.radiusMeters <= 0 || zone.radiusMeters > 1_000_000) {
+      throw new Error("radiusMeters must be greater than 0 and at most 1000000");
+    }
+    if (!this.zones.has(zone.id) && this.zones.size >= MAX_ZONES) throw new Error("geofence capacity reached");
+    this.zones.set(zone.id, { ...zone, center: { ...zone.center } });
   }
 
   trackLocation(entityId: string, location: Location): void {
-    if (!this.locations.has(entityId)) {
-      this.locations.set(entityId, []);
-    }
-    this.locations.get(entityId)!.push(location);
+    if (!entityId.trim() || entityId.length > 128) throw new Error("entity id must contain 1-128 characters");
+    validateLocation(location);
+    const history = this.histories.get(entityId) ?? [];
+    history.push({ ...location });
+    if (history.length > MAX_HISTORY_PER_ENTITY) history.splice(0, history.length - MAX_HISTORY_PER_ENTITY);
+    this.histories.set(entityId, history);
   }
 
-  checkGeofenceViolation(entityId: string, location: Location): GeofenceZone | null {
-    for (const zone of this.zones.values()) {
-      const distance = this.calculateDistance(location, zone.center);
-      if (distance <= zone.radius && zone.type === 'exclusion') {
-        return zone;
+  evaluate(location: Location): GeofenceEvaluation[] {
+    validateLocation(location);
+    return [...this.zones.values()].map((zone) => {
+      const distance = distanceMeters(location, zone.center);
+      const inside = distance <= zone.radiusMeters;
+      return {
+        zoneId: zone.id,
+        inside,
+        violation: zone.type === "exclusion" ? inside : !inside,
+        distanceMeters: distance,
+      };
+    });
+  }
+
+  estimateRoute(waypoints: Location[]): RouteEstimate {
+    if (waypoints.length < 2 || waypoints.length > MAX_WAYPOINTS) {
+      throw new Error("route requires between 2 and 100 waypoints");
+    }
+    waypoints.forEach(validateLocation);
+    const remaining = waypoints.slice(1).map((point) => ({ ...point }));
+    const ordered: Location[] = [{ ...waypoints[0] }];
+    while (remaining.length) {
+      const current = ordered[ordered.length - 1];
+      let nearestIndex = 0;
+      for (let i = 1; i < remaining.length; i += 1) {
+        if (distanceMeters(current, remaining[i]) < distanceMeters(current, remaining[nearestIndex])) nearestIndex = i;
       }
+      ordered.push(remaining.splice(nearestIndex, 1)[0]);
     }
-    return null;
-  }
-
-  optimizeRoute(waypoints: Location[]): Route {
-    // Traveling salesman problem solver
-    const optimized = this.tsp(waypoints);
-    const distance = this.calculateTotalDistance(optimized);
-    
-    return {
-      id: `route-${Date.now()}`,
-      waypoints: optimized,
-      distance,
-      estimatedTime: distance / 50, // 50 km/h average
-      optimized: true,
-    };
-  }
-
-  private calculateDistance(loc1: Location, loc2: Location): number {
-    const R = 6371000; // Earth radius in meters
-    const lat1 = (loc1.latitude * Math.PI) / 180;
-    const lat2 = (loc2.latitude * Math.PI) / 180;
-    const deltaLat = ((loc2.latitude - loc1.latitude) * Math.PI) / 180;
-    const deltaLon = ((loc2.longitude - loc1.longitude) * Math.PI) / 180;
-
-    const a =
-      Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-      Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return R * c;
-  }
-
-  private calculateTotalDistance(waypoints: Location[]): number {
     let total = 0;
-    for (let i = 0; i < waypoints.length - 1; i++) {
-      total += this.calculateDistance(waypoints[i], waypoints[i + 1]);
-    }
-    return total;
-  }
-
-  private tsp(waypoints: Location[]): Location[] {
-    // Simplified TSP solver (nearest neighbor heuristic)
-    const visited = new Set<number>();
-    const route: Location[] = [waypoints[0]];
-    visited.add(0);
-
-    while (visited.size < waypoints.length) {
-      const current = route[route.length - 1];
-      let nearest = -1;
-      let minDistance = Infinity;
-
-      for (let i = 0; i < waypoints.length; i++) {
-        if (!visited.has(i)) {
-          const distance = this.calculateDistance(current, waypoints[i]);
-          if (distance < minDistance) {
-            minDistance = distance;
-            nearest = i;
-          }
-        }
-      }
-
-      if (nearest !== -1) {
-        route.push(waypoints[nearest]);
-        visited.add(nearest);
-      }
-    }
-
-    return route;
+    for (let i = 1; i < ordered.length; i += 1) total += distanceMeters(ordered[i - 1], ordered[i]);
+    return { waypoints: ordered, distanceMeters: total, heuristic: "nearest-neighbor" };
   }
 
   getLocationHistory(entityId: string): Location[] {
-    return this.locations.get(entityId) || [];
+    return (this.histories.get(entityId) ?? []).map((location) => ({ ...location }));
   }
 }
 
