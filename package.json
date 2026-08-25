@@ -1,11 +1,16 @@
 {
   "name": "@skycoin4444/geolocation-intelligence",
-  "version": "1.0.0",
-  "description": "Advanced geolocation and location intelligence platform",
+  "version": "1.1.0-beta.1",
+  "description": "Bounded geofence, distance, and route-estimation utilities",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "test": "echo 'tests'",
-    "start": "node dist/index.js"
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test test/*.test.cjs",
+    "audit": "npm audit --omit=dev --audit-level=high"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
   }
 }

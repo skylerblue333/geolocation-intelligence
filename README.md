@@ -1,44 +1,32 @@
-<!-- PORTFOLIO PROJECT PROFILE: maintained by the repository owner -->
+# Sky Geo Insights
 
-## Project profile and code-audit snapshot
+**Status: engineering beta / local geospatial library.**
 
-**What this is:** **geolocation-intelligence** is a public repository described as: “Core component of SKYCOIN4444 ecosystem. #SkyCoin4444 #AI #Blockchain #DevOps #Innovation” Its dominant language signals are **TypeScript (1 files)**.
+Sky Geo Insights is a dependency-light TypeScript library for bounded geofence evaluation, Haversine distance calculation, short in-memory location histories, and nearest-neighbor route estimation.
 
-**Why it has value:** Its value is best understood through the implementation evidence currently present in the repository: **6 tracked files** were observed in the shallow audit, with the source structure and existing documentation providing the project’s specific context. This README does not treat a prototype, experiment, or archive as a production system without supporting evidence.
+## Capabilities
 
-**Implementation evidence:** No test-related file was detected by filename heuristics.; 1 dependency or package manifest(s) detected; No CI, build, Docker, or infrastructure signal was detected by the audit.; and 2 documentation or governance file(s) detected. Test filenames observed include none detected. Dependency or package files include `package.json`. Build, CI, or infrastructure signals include none detected.
+- validates latitude, longitude, timestamps, accuracy, zone IDs, names, and radii
+- evaluates inclusion/exclusion geofences with explicit violation semantics
+- retains at most 1,000 locations per entity and returns defensive copies
+- limits geofences to 1,000 and route requests to 100 waypoints
+- computes Haversine distance in meters
+- estimates waypoint ordering with an explicitly labeled nearest-neighbor heuristic
+- strict TypeScript build/typecheck, real Node tests, and runtime dependency audit in CI
 
-**Current status:** The repository is tracked on the `main` branch. The existing source tree, configuration, tests, workflows, and documentation remain authoritative for supported behavior and maturity. A code audit is not a production-readiness certification, and the presence of a test or workflow file does not establish that all checks pass.
+## Important boundaries
 
-**Relationship to the wider portfolio:** This repository is one focused component of the broader Skyler Blue Spillers portfolio across AI, software engineering, cloud and DevOps, cybersecurity, blockchain, finance, education, social systems, and creative work. It may provide a service boundary, implementation pattern, experiment, archive, or reusable idea for related repositories. Treat repositories as technical dependencies only where documented interfaces and verified project requirements support that relationship.
+This repository does **not** collect device location, perform background tracking, call mapping/geocoding providers, provide turn-by-turn navigation, guarantee optimal routes, persist histories, identify people, provide surveillance functionality, enforce geofences on devices, or claim production deployment. Callers supply coordinates directly and are responsible for consent, privacy, retention, and applicable law.
 
-**Quality and security note:** No obvious secret-like pattern was detected by the limited static scan; this is not a substitute for a security audit. No TODO/FIXME marker was detected in the scanned text files.
+## Development
 
----
+```bash
+npm install
+npm run typecheck
+npm test
+npm run audit
+```
 
-# Geolocation Intelligence
+## Integration
 
-![GitHub stars](https://img.shields.io/github/stars/skylerblue333/geolocation-intelligence?style=flat-square)
-![GitHub license](https://img.shields.io/github/license/skylerblue333/geolocation-intelligence?style=flat-square)
-
-## 🌟 Overview
-**geolocation-intelligence** is a professional-grade project within the **SkyCoin4444** ecosystem. It focuses on delivering high-value solutions in the domain of **TypeScript**.
-
-## 🚀 Key Features
-- **Scalable Architecture**: Designed for enterprise-level growth and performance.
-- **Modern Standards**: Implements best practices for clean code and maintainability.
-- **Robust Integration**: Built to work seamlessly within modern cloud-native environments.
-
-## 🛠️ Technology Stack
-- **Primary Domain**: TypeScript
-- **Ecosystem**: SkyCoin4444 Digital Platform
-
-## 📂 Structure
-The project is organized into a modular structure to ensure clarity and ease of development.
-
-## 👨‍💻 Author
-**Skyler Blue Spillers**
-*Professional Chess Player & Software Engineer*
-
----
-*Powered by SkyCoin4444*
+SKYCOIN4444 applications can consume this package as a local geometry/policy primitive. Any mapping provider, durable datastore, user identity, or location-collection adapter should remain outside this package and be independently secured and verified.
